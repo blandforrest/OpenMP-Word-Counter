@@ -34,4 +34,5 @@ void hashTableTest()
 		std::cout << "Bob could not be found" << std::endl;
 	}
 
+    newTable->~HashTable();
 }
