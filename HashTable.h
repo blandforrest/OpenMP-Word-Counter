@@ -1,10 +1,10 @@
+#ifndef HASHTABLE_H
+#define HASHTABLE_H
+
 #include <vector>
 #include <map>
 #include <string>
 #include <limits>
-
-typedef std::pair< std::string, uint32_t > * wPair;
-constexpr uint16_t TABLE_SIZE = std::numeric_limits< uint16_t >::max();
 
 /*
 * Class: HashTable
@@ -24,6 +24,10 @@ constexpr uint16_t TABLE_SIZE = std::numeric_limits< uint16_t >::max();
 *	mBucket - Array of pointers to space for pairs to be placed
 * 
 */
+
+typedef std::pair< std::string, uint32_t > * wPair;
+constexpr uint16_t TABLE_SIZE = std::numeric_limits< uint16_t >::max();
+
 class HashTable
 {
 public:
@@ -37,3 +41,5 @@ private:
 	uint16_t hash( std::string lString );
 
 };
+
+#endif

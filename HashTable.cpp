@@ -22,14 +22,11 @@ void HashTable::addMap( wPair lMap )
 	// If bucket slot is empty, add the pair. Otherwise increment value
 	if( lPair == NULL )
 	{
-		//lPair = lMap;
 		lPair = lMap;
 	}
 	else
 	{
-		//lPair->second++;
 		lPair->second++;
-
 	}
 
 }
