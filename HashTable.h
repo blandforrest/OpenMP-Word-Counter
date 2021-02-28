@@ -34,7 +34,7 @@ public:
     HashTable();
     ~HashTable();
     
-    void addMap( wPair );
+    void addMap( const std::string & lString );
     int32_t find( std::string key );
 private:
     std::vector< wPair > * mBucket;

@@ -4,6 +4,7 @@ HashTable::HashTable()
 {
     mBucket = new std::vector< wPair > ( TABLE_SIZE, NULL );
 }
+
 HashTable::~HashTable()
 {
     // Deallocate pairs and bucket
@@ -14,21 +15,21 @@ HashTable::~HashTable()
     delete mBucket;
 }
 
-void HashTable::addMap( wPair lMap )
+void HashTable::addMap( const std::string & lString )
 {
-    uint16_t idx = hash( lMap->first );
+    uint16_t idx = hash( lString );
     wPair & lPair = mBucket->at( idx );
     
     // If bucket slot is empty, add the pair. Otherwise increment value
     if( lPair == NULL )
     {
-        lPair = lMap;
+
+        lPair = ( new std::pair< std::string, uint32_t > ( lString, 1 ) );
     }
     else
     {
         lPair->second++;
     }
-
 }
 
 // Return the index of a given string 
