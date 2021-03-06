@@ -2,52 +2,70 @@
 #include <iostream>
 #include <fstream>
 #include <queue>
+#include <omp.h>
+#include <algorithm>    // std::transform
+
+#include "Reader.h"
 
 using namespace std;
 
-int main()
+#define NUM_READER_THREADS 16
+
+Reader::Reader()
 {
-    // Note: This will need to be modified for reading from multiple files
+    mQueue = new queue< string >;
+}
 
-	ifstream inputFile;
-	inputFile.open( "test.txt" );
+Reader::~Reader()
+{
+    delete mQueue;
+}
 
-	queue<string> file_words;
+void Reader::ReadFile( const string cFileName )
+{
+ 
+    ifstream inputFile;
 
-	if ( false == inputFile.is_open() )
-	{
-		cout << "Failed to open test.txt file." << endl;
-		return -1;
-	}
+    int tid = omp_get_thread_num();
 
-    #pragma omp parallel
+    printf( "Thread ID: %d\n", tid );
+
+    inputFile.open( cFileName.c_str() );
+
+    if ( false == inputFile.is_open() )
     {
-        string word;
+        cout << "Failed to open text file " << cFileName << endl;
+    }
 
-		while ( !inputFile.eof() )
-		{
-			// Read in a word from the file
-		    #pragma omp critical
-		    {
-                inputFile >> word;
-            }
+    string line;
+
+    // Read in a word from the file until reaching the end of the file
+    while ( getline( inputFile,  line ) )
+    {
+        // Check whether line is empty
+        if ( line.length() != 0 )
+        {
+            // Convert string to lower case
+            transform( line.begin(), line.end(), line.begin(), ::tolower ); 
 
             // Add the word read in to the queue of words
             #pragma omp critical
             {
-            	file_words.push( word );
+                mQueue->push( line );
             }
-		}
+        }
     }
 
-    // Print out the contents of the queue to make sure info read in correctly
-    while ( !file_words.empty() )
+    inputFile.close();
+
+
+    if ( 12 == tid )
     {
-    	cout << file_words.front() << endl;
-    	file_words.pop();
+        // Print out the contents of the queue to make sure info read in correctly
+        while ( !mQueue->empty() )
+        {
+            cout << mQueue->front() << endl;
+            mQueue->pop();
+        }
     }
-
-	inputFile.close();
-
-	return 0;
 }
