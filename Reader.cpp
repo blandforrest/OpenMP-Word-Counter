@@ -9,7 +9,6 @@
 
 using namespace std;
 
-#define NUM_READER_THREADS 16
 
 Reader::Reader()
 {
@@ -57,15 +56,4 @@ void Reader::ReadFile( const string cFileName )
     }
 
     inputFile.close();
-
-
-    if ( 12 == tid )
-    {
-        // Print out the contents of the queue to make sure info read in correctly
-        while ( !mQueue->empty() )
-        {
-            cout << mQueue->front() << endl;
-            mQueue->pop();
-        }
-    }
 }

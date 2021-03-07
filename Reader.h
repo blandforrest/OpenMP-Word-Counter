@@ -13,7 +13,8 @@ public:
     ~Reader();
 
     void ReadFile( const string cFileName );
-
+ 
+    // Queue of lines read from files
     queue< string >* mQueue;
 
 };

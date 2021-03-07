@@ -5,6 +5,7 @@
 #include <omp.h>
 #include <string>
 #include "Reader.h"
+#include "Reducer.h"
 
 using namespace std;
 
@@ -46,32 +47,51 @@ int main()
     	readers[i] = new Reader();
     }
 
-    #pragma omp parallel
+
+    for ( int i = 0; i < NUM_READER_THREADS; i++ )
     {
-    	int file_index = 0;
-    	int tid = omp_get_thread_num();
+        #pragma omp task
+        {
+    	    int file_index = 0;
+    	    int tid = omp_get_thread_num();
 
-        // Get first index of file to read from
-    	#pragma omp critical
-    	{
-            file_index = current_file;
-            current_file++;
-    	}
-
-        // Continue getting and reading files until all files read
-    	while ( file_index < NUM_READER_THREADS )
-    	{
-            readers[tid]->ReadFile( arr[tid] );
-
-            // Get next index of file to read from
-            #pragma omp critical
+            // Get first index of file to read from
+    	    #pragma omp critical
     	    {
                 file_index = current_file;
                 current_file++;
     	    }
-    	}
+
+            // Continue getting and reading files until all files read
+    	    while ( file_index < NUM_READER_THREADS )
+    	    {
+                readers[tid]->ReadFile( arr[tid] );
+
+                // Get next index of file to read from
+                #pragma omp critical
+    	        {
+                    file_index = current_file;
+                    current_file++;
+    	        }
+    	    }
+        }
     }
 
+    // Reducer test
+
+    vector< pair<string,int > > mapperCounts;
+
+    mapperCounts.push_back( pair<string,int>("test", 3));
+    mapperCounts.push_back(pair<string,int>("lauren", 1));
+    mapperCounts.push_back(pair<string,int>("abc", 10));
+    mapperCounts.push_back(pair<string,int>("lauren", 4));
+    mapperCounts.push_back(pair<string,int>("blah", 6));
+    mapperCounts.push_back(pair<string,int>("abc", 2));
+
+    Reducer* myReduce = new Reducer();
+
+    myReduce->Reduce( mapperCounts );
+    myReduce->PrintResultsToFile();
 
 	return 0;
 }
