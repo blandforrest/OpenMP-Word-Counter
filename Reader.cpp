@@ -27,7 +27,7 @@ void Reader::ReadFile( const string cFileName )
 
     int tid = omp_get_thread_num();
 
-    printf( "Thread ID: %d\n", tid );
+    printf( "Thread ID: %d reading %s \n", tid, cFileName.c_str() );
 
     inputFile.open( cFileName.c_str() );
 
@@ -36,7 +36,7 @@ void Reader::ReadFile( const string cFileName )
         cout << "Failed to open text file " << cFileName << endl;
     }
 
-    string line;
+    std::string line;
 
     // Read in a word from the file until reaching the end of the file
     while ( getline( inputFile,  line ) )
@@ -46,6 +46,9 @@ void Reader::ReadFile( const string cFileName )
         {
             // Convert string to lower case
             transform( line.begin(), line.end(), line.begin(), ::tolower ); 
+
+            // Remove punctionation
+            line.erase( remove_if( line.begin(), line.end(), ::ispunct ), line.end() );
 
             // Add the word read in to the queue of words
             #pragma omp critical

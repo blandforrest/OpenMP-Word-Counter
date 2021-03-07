@@ -48,32 +48,38 @@ int main()
     }
 
 
-    for ( int i = 0; i < NUM_READER_THREADS; i++ )
+    #pragma omp parallel
     {
-        #pragma omp task
+        #pragma omp single
         {
-    	    int file_index = 0;
-    	    int tid = omp_get_thread_num();
+            for ( int i = 0; i < NUM_READER_THREADS; i++ )
+            {
+                #pragma omp task shared(current_file)
+                {
+    	           int file_index = 0;
+    	            int tid = omp_get_thread_num();
 
-            // Get first index of file to read from
-    	    #pragma omp critical
-    	    {
-                file_index = current_file;
-                current_file++;
-    	    }
+                    // Get first index of file to read from
+    	            #pragma omp critical
+    	            {
+                        file_index = current_file;
+                        current_file++;
+    	            }
 
-            // Continue getting and reading files until all files read
-    	    while ( file_index < NUM_READER_THREADS )
-    	    {
-                readers[tid]->ReadFile( arr[tid] );
+                    // Continue getting and reading files until all files read
+    	            while ( file_index < NUM_READER_THREADS )
+    	            {
+                        readers[i]->ReadFile( arr[file_index] );
 
-                // Get next index of file to read from
-                #pragma omp critical
-    	        {
-                    file_index = current_file;
-                    current_file++;
-    	        }
-    	    }
+                        // Get next index of file to read from
+                        #pragma omp critical
+    	                {
+                            file_index = current_file;
+                            current_file++;
+    	                }
+    	            }
+                }
+            }
         }
     }
 
