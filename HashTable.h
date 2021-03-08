@@ -5,6 +5,7 @@
 #include <map>
 #include <string>
 #include <limits>
+#include <iostream>
 
 /*
 * Class: HashTable
@@ -36,6 +37,7 @@ public:
     
     void addMap( const std::string & lString );
     int32_t find( std::string key );
+    void printTable();
 private:
     std::vector< wPair > * mBucket;
     uint16_t hash( std::string lString );

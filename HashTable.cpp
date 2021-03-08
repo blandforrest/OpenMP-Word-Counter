@@ -43,6 +43,19 @@ int32_t HashTable::find(std::string lKey)
     return ( lPair == NULL ) ? -1 : lPair->second;
 }
 
+void HashTable::printTable()
+{
+    for ( auto & pair : *mBucket )
+    {
+        if( pair != NULL )
+        {
+            std::string lKey = pair->first;
+            uint32_t lCount = pair->second;
+            std::cout << "< " << lKey << ", " << lCount << " >" << std::endl;
+        }
+    }
+}
+
 // Hash the string using each character and prime numbers
 uint16_t HashTable::hash( std::string lString )
 {

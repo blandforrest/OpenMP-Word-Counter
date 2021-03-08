@@ -27,13 +27,20 @@ void Reader::ReadFile( const string cFileName )
 
     int tid = omp_get_thread_num();
 
-    printf( "Thread ID: %d reading %s \n", tid, cFileName.c_str() );
+    #pragma omp critical
+    {
+        printf( "Thread ID: %d reading %s \n", tid, cFileName.c_str() );
+    }
 
     inputFile.open( cFileName.c_str() );
 
     if ( false == inputFile.is_open() )
     {
-        cout << "Failed to open text file " << cFileName << endl;
+        #pragma omp critical
+        {
+            cout << "Failed to open text file " << cFileName << endl;
+        }
+        return; // Exit function if file read fails
     }
 
     std::string line;
