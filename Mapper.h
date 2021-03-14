@@ -15,7 +15,7 @@ public:
     void readQueue( std::queue< std::string > & lQueue );
 //private:
     HashTable * mHashTable;
-    bool mEnable = true;
+    bool mEnable;
 
 };
 

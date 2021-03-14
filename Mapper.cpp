@@ -1,9 +1,10 @@
-#include "mapper.h"
+#include "Mapper.h"
 
 
 Mapper::Mapper()
 {
     mHashTable = new HashTable;
+    mEnable = true;
 }
 
 Mapper::~Mapper()
@@ -18,27 +19,24 @@ void Mapper::disableMapper()
 
 void Mapper::readQueue( std::queue< std::string > & lQueue )
 {
-    // Continue pulling from queue until disabled by Reader
-    while( mEnable || !lQueue.empty() )
-    {
-        // Wait if Mapper hasn't been disabled
-        if( lQueue.empty() ) continue;
 
-        // Read a line from the queue
-        std::string lString;
-        std::stringstream lStream;
+    // Wait if Mapper hasn't been disabled
+    if( lQueue.empty() ) return;
+
+    // Read a line from the queue
+    std::string lString;
+    std::stringstream lStream;
         
-        #pragma omp critical
-        {
-            lStream << ( lQueue.front() );
-            lQueue.pop();
-        }
-
-        while( lStream >> lString )
-        {
-            mHashTable->addMap( lString );
-        }    
+    #pragma omp critical
+    {
+        lStream << ( lQueue.front() );
+        lQueue.pop();
     }
 
+
+    while( lStream >> lString )
+    {
+        mHashTable->addMap( lString );
+    }    
 
 }
