@@ -55,7 +55,8 @@ void Reader::ReadFile( const string cFileName )
             transform( line.begin(), line.end(), line.begin(), ::tolower ); 
 
             // Remove punctionation
-            line.erase( remove_if( line.begin(), line.end(), ::ispunct ), line.end() );
+            replace_if( line.begin(), line.end(),
+            [] (const char& c) { return ( ispunct(c) && c != '\'' ) ;},' ' );
 
             // Add the word read in to the queue of words
             #pragma omp critical

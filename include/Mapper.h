@@ -4,6 +4,7 @@
 #include <queue>
 #include <sstream>
 #include "HashTable.h"
+#include "Reducer.h"
 
 
 class Mapper
@@ -13,9 +14,10 @@ public:
     ~Mapper();
     void disableMapper();
     void readQueue( std::queue< std::string > & lQueue );
-//private:
+    void sendReducer( Reducer ** reducerList, int numReducers );
+
     HashTable * mHashTable;
-    bool mEnable = true;
+    bool mEnable;
 
 };
 

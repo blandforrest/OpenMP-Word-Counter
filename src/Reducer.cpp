@@ -18,14 +18,19 @@ Reducer::~Reducer()
 
 }
 
-void Reducer::Reduce( vector< pair<string,int > > mapperCounts )
+void Reducer::AddWork( const pair< std::string, int > & lPair )
 {
-    vector< pair<string,int > >::iterator item;
+    mWork.push_back( lPair );
+}
 
-    for ( item = mapperCounts.begin(); item != mapperCounts.end(); item++ )
+void Reducer::Reduce( )
+{
+    vector< pair< string, int > >::iterator item;
+
+    for ( item = mWork.begin(); item != mWork.end(); item++ )
     {
     	// Check to see if work already in the map
-        map<string,int>::iterator it = finalCounts.find( item->first );
+        map< string, int >::iterator it = finalCounts.find( item->first );
 
         // If word already in the map, add to its current count
         if ( it != finalCounts.end() )
@@ -34,7 +39,7 @@ void Reducer::Reduce( vector< pair<string,int > > mapperCounts )
         }
         else
         {
-            finalCounts.insert( pair<string,int>( item->first, item->second ) );
+            finalCounts.insert( pair< string, int >( item->first, item->second ) );
         }
     }
 
@@ -42,7 +47,7 @@ void Reducer::Reduce( vector< pair<string,int > > mapperCounts )
 
 void Reducer::PrintResultsToFile()
 {
-    for ( map<string,int>::iterator it = finalCounts.begin(); it != finalCounts.end(); it++ )
+    for ( map< string, int >::iterator it = finalCounts.begin(); it != finalCounts.end(); it++ )
     {
     	cout << "Word: " << it->first << " Count: " << it->second << endl;
     }
