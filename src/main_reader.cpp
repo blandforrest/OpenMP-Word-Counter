@@ -121,11 +121,12 @@ int main()
         reducers[i]->Reduce();   
     }
 
-    // Sequentially print the output 
+    // Print the output
+    #pragma omp parallel 
     for( int i = 0; i < NUM_REDUCER_THREADS; i++ ) 
     {
         std::cout << "Reducer: " << i << std::endl;
-        reducers[i]->PrintResultsToFile();
+        reducers[i]->PrintResultsToFile( i );
     }
 
 	return 0;

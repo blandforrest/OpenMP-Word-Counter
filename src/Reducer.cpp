@@ -29,7 +29,7 @@ void Reducer::Reduce( )
 
     for ( item = mWork.begin(); item != mWork.end(); item++ )
     {
-    	// Check to see if work already in the map
+        // Check to see if work already in the map
         map< string, int >::iterator it = finalCounts.find( item->first );
 
         // If word already in the map, add to its current count
@@ -45,10 +45,26 @@ void Reducer::Reduce( )
 
 }
 
-void Reducer::PrintResultsToFile()
+void Reducer::PrintResultsToScreen()
 {
     for ( map< string, int >::iterator it = finalCounts.begin(); it != finalCounts.end(); it++ )
     {
-    	cout << "Word: " << it->first << " Count: " << it->second << endl;
+        cout << "Word: " << it->first << " Count: " << it->second << endl;
     }
+}
+
+
+void Reducer::PrintResultsToFile( int reduce_num )
+{
+    ofstream results_file;
+    string file_name = "output/reducer_" + to_string( reduce_num ) + ".txt";
+
+    results_file.open( file_name );
+
+    for ( map< string, int >::iterator it = finalCounts.begin(); it != finalCounts.end(); it++ )
+    {
+        results_file << "Word: " << it->first << " Count: " << it->second << endl;
+    }
+
+    results_file.close();
 }
