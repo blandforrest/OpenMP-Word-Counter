@@ -12,15 +12,14 @@
 
 using namespace std;
 
-#define NUM_READER_THREADS 16
-#define NUM_REDUCER_THREADS 16
+#define NUM_READER_THREADS 4
+#define NUM_REDUCER_THREADS 4
 #define NUM_INPUT_FILES 16
 
 
 
 int main(int argc, char *argv[])
 {
-
 
     omp_set_num_threads(33);
 
@@ -61,19 +60,40 @@ int main(int argc, char *argv[])
 
     int current_file = 0;
 
+    omp_lock_t lck;
+    omp_init_lock(&lck);
+    int all_done_count = 0;
+
+
+
+    Reader  * readers[NUM_READER_THREADS];
+    Mapper  * mappers[NUM_READER_THREADS];
+    Reducer * reducers[NUM_REDUCER_THREADS];
+
+    // Create each of the Reader objects
+    for ( int i = 0; i < NUM_READER_THREADS; i++ )
+    {
+        readers[i] = new Reader();
+        mappers[i] = new Mapper();
+    }
+
+    for ( int i = 0; i < NUM_REDUCER_THREADS; i++ )
+    {
+        reducers[i] = new Reducer();
+    }
+
 
     if ( 0 == pid )
     {
         #pragma omp parallel
         {
-            // Thread on "master node" that assigns work to the other processes
             #pragma omp single
             {
-                #pragma omp task shared(current_file)
+                // Thread on "master node" that assigns work to the other processes
+                #pragma omp task shared(current_file, all_done_count)
                 {
                     string file_name_buff = "";
                     int requestor = -1;
-                    int all_done_count = 0;
 
                     // Continue until all the threads on other processes have received "all done"
                     while ( all_done_count < ( numP - 1 ) * NUM_READER_THREADS )
@@ -83,6 +103,7 @@ int main(int argc, char *argv[])
                         MPI_Recv( &requestor, 1, MPI_INT, MPI_ANY_SOURCE, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE );
 
 
+                        omp_set_lock(&lck);
                         if ( current_file < NUM_INPUT_FILES )
                         {
                             file_name_buff = arr[current_file];
@@ -93,36 +114,113 @@ int main(int argc, char *argv[])
                             file_name_buff = "all done";
                             all_done_count++;
                         }
+                        omp_unset_lock(&lck);
 
 
                         MPI_Send( file_name_buff.c_str(), file_name_buff.size(), MPI_CHAR, requestor, 1, MPI_COMM_WORLD );
 
                     }
                 }
+
+
+                for ( int i = 0; i < NUM_READER_THREADS; i++ )
+                {
+                    // Run Reader Task
+                    #pragma omp task shared( current_file )
+                    {
+
+                        char read_file_name[16];
+                        int tid = omp_get_thread_num();
+                        MPI_Status status;
+                        int filename_len = -1;
+
+
+                        #pragma omp critical
+                        {
+                            cout << "Process " << pid << " Thread " << tid << " started reader task " << endl;
+                        }
+
+ 
+                        // Process 0 doesn't have to communicate with another process to get the next file name
+                        omp_set_lock(&lck);
+                        if ( current_file < NUM_INPUT_FILES )
+                        {
+                            strcpy( read_file_name, arr[current_file].c_str() );
+                            current_file++;
+                        }
+                        else
+                        {
+                            strcpy( read_file_name, "all done" );
+                            all_done_count++;
+                        }
+
+                        #pragma omp critical
+                        {
+                            cout << "Process " << pid << " Thread " << tid << " got file name " << read_file_name << endl;
+                        }
+
+                        filename_len = arr[current_file].size();
+                        omp_unset_lock(&lck);
+
+                        // Continue getting and reading files until all files read
+                        while ( strncmp( read_file_name, "all done", filename_len - 1 ) != 0 )
+                        {
+                            // Add null terminating character
+                            read_file_name[filename_len] = '\0';
+
+                            readers[i]->ReadFile( string( read_file_name ) );
+
+                            // clear out file name buffer
+                            memset( read_file_name, 0, 16);
+
+
+                            // Process 0 doesn't have to communicate with another process to get the next file name
+                            omp_set_lock(&lck);
+                            if ( current_file < NUM_INPUT_FILES )
+                            {
+                                strcpy( read_file_name, arr[current_file].c_str() );
+                                current_file++;
+                            }
+                            else
+                            {
+                                strcpy( read_file_name, "all done" );
+                            }
+
+                            filename_len = arr[current_file].size();
+                            omp_unset_lock(&lck);
+
+                            #pragma omp critical
+                            {
+                                cout << "Process " << pid << " Thread " << tid << " got file name " << read_file_name << endl;
+                            }
+
+                        }
+
+                        mappers[i]->disableMapper(); // Disable corresponding mapper once complete
+                    }
+
+                    // Run corresponding mapper task
+                    #pragma omp task
+                    {
+                        int tid = omp_get_thread_num();
+                        //std::cout << "Mapper Task: " << tid << std::endl;
+
+                        // Read from the Queue while the mapper is enabled or queue is not empty
+                        while( mappers[i]->mEnable || !readers[i]->mQueue->empty() )
+                        {
+                            mappers[i]->readQueue( *readers[i]->mQueue );
+                        }
+                        // Once reading is complete, send to reducer
+                        mappers[i]->sendReducer( reducers, NUM_REDUCER_THREADS );
+                    }
+                }
+
             }
         }
     }
 
-    Reader  * readers[NUM_READER_THREADS];
-    Mapper  * mappers[NUM_READER_THREADS];
-    Reducer * reducers[NUM_REDUCER_THREADS];
-
-    // Create each of the Reader objects
-    for ( int i = 0; i < NUM_READER_THREADS; i++ )
+    else
     {
-    	readers[i] = new Reader();
-        mappers[i] = new Mapper();
-    }
-
-    for ( int i = 0; i < NUM_REDUCER_THREADS; i++ )
-    {
-        reducers[i] = new Reducer();
-    }
-
-
-    if ( 0 != pid )
-    {
-
     #pragma omp parallel
     {
         #pragma omp single
@@ -132,12 +230,19 @@ int main(int argc, char *argv[])
                 // Run Reader Task
                 #pragma omp task shared( current_file )
                 {
+
                     char read_file_name[16];
                     int tid = omp_get_thread_num();
                     MPI_Status status;
                     int filename_len = -1;
 
 
+                    #pragma omp critical
+                    {
+                        cout << "Process " << pid << " Thread " << tid << " started reader task " << endl;
+                    }
+
+ 
                     // Request to master process for first filename to read from
                     MPI_Send( &pid, 1, MPI_INT, 0, 1, MPI_COMM_WORLD );
 
@@ -176,7 +281,6 @@ int main(int argc, char *argv[])
                         {
                             cout << "Process " << pid << " Thread " << tid << " received file name " << read_file_name << endl;
                         }
-
     	            }
 
                     mappers[i]->disableMapper(); // Disable corresponding mapper once complete
@@ -199,6 +303,7 @@ int main(int argc, char *argv[])
             }
         }
     }
+    }
     
 
     // Let each reducer work on it's Queue
@@ -217,9 +322,9 @@ int main(int argc, char *argv[])
     for( int i = 0; i < NUM_REDUCER_THREADS; i++ ) 
     {
         std::cout << "Reducer: " << i << std::endl;
-        reducers[i]->PrintResultsToFile( i );
+        reducers[i]->PrintResultsToFile( pid, i );
     }
-    }
+
 
 	return 0;
 }

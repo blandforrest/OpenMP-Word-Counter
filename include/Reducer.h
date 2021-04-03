@@ -21,7 +21,7 @@ public:
     vector< pair<string, int > > mWork;
 
     void PrintResultsToScreen();
-    void PrintResultsToFile( int reduce_num );
+    void PrintResultsToFile( int pid, int reduce_num );
     
 };
 

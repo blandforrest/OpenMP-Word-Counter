@@ -54,10 +54,10 @@ void Reducer::PrintResultsToScreen()
 }
 
 
-void Reducer::PrintResultsToFile( int reduce_num )
+void Reducer::PrintResultsToFile( int pid, int reduce_num )
 {
     ofstream results_file;
-    string file_name = "output/reducer_" + to_string( reduce_num ) + ".txt";
+    string file_name = "output/reducer_pid" + to_string( pid ) + "_" + to_string( reduce_num ) + ".txt";
 
     results_file.open( file_name );
 
