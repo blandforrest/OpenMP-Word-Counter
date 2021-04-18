@@ -36,11 +36,11 @@ public:
     ~HashTable();
     
     void addMap( const std::string & lString );
-    int32_t find( std::string key );
     void printTable();
-//private:
-    std::vector< wPair > * mBucket;
+    int32_t find( std::string key );
     uint16_t hash( std::string lString );
+
+    std::vector< wPair > * mBucket;
     
 };
 

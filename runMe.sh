@@ -1,5 +1,6 @@
-cmake .
+cmake . 
 
-make
+make 
 
-sbatch project.sub
+sbatch --exclusive project.sub
+

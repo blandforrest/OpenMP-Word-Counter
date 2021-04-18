@@ -13,7 +13,7 @@
 using namespace std;
 
 #define NUM_READER_THREADS 4
-#define NUM_REDUCER_THREADS 4
+#define NUM_REDUCER_THREADS 5
 #define NUM_INPUT_FILES 16
 
 
@@ -21,8 +21,8 @@ using namespace std;
 int main(int argc, char *argv[])
 {
 
-    omp_set_num_threads(33);
-
+    // omp_set_num_threads(33);
+    std::cout << "NUM THREADS: " << omp_get_num_threads() << std::endl;
     // Initialize default MPI Communicator
     MPI_Init( &argc, &argv );
 
@@ -33,10 +33,10 @@ int main(int argc, char *argv[])
     int numP;
 
     // Get the number of processes in the communicator
-    MPI_Comm_size(MPI_COMM_WORLD, &numP );
+    MPI_Comm_size( MPI_COMM_WORLD, &numP );
 
     // Get the rank of the process
-    MPI_Comm_rank(MPI_COMM_WORLD, &pid );
+    MPI_Comm_rank( MPI_COMM_WORLD, &pid );
 
     string arr[NUM_INPUT_FILES] = 
     {
@@ -100,7 +100,10 @@ int main(int argc, char *argv[])
                     {
 
                         // Receive a request for next file
-                        MPI_Recv( &requestor, 1, MPI_INT, MPI_ANY_SOURCE, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE );
+                        #pragma omp critical
+                        {
+                            MPI_Recv( &requestor, 1, MPI_INT, MPI_ANY_SOURCE, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE );
+                        }
 
 
                         omp_set_lock(&lck);
@@ -116,8 +119,10 @@ int main(int argc, char *argv[])
                         }
                         omp_unset_lock(&lck);
 
-
-                        MPI_Send( file_name_buff.c_str(), file_name_buff.size(), MPI_CHAR, requestor, 1, MPI_COMM_WORLD );
+                        #pragma omp critical
+                        {
+                          MPI_Send( file_name_buff.c_str(), file_name_buff.size(), MPI_CHAR, requestor, 1, MPI_COMM_WORLD );
+                        }
 
                     }
                 }
@@ -135,10 +140,10 @@ int main(int argc, char *argv[])
                         int filename_len = -1;
 
 
-                        #pragma omp critical
-                        {
-                            cout << "Process " << pid << " Thread " << tid << " started reader task " << endl;
-                        }
+                        // #pragma omp critical
+                        // {
+                        //     cout << "Process " << pid << " Thread " << tid << " started reader task " << endl;
+                        // }
 
  
                         // Process 0 doesn't have to communicate with another process to get the next file name
@@ -154,10 +159,10 @@ int main(int argc, char *argv[])
                             all_done_count++;
                         }
 
-                        #pragma omp critical
-                        {
-                            cout << "Process " << pid << " Thread " << tid << " got file name " << read_file_name << endl;
-                        }
+                        // #pragma omp critical
+                        // {
+                        //     cout << "Process " << pid << " Thread " << tid << " got file name " << read_file_name << endl;
+                        // }
 
                         filename_len = arr[current_file].size();
                         omp_unset_lock(&lck);
@@ -189,14 +194,17 @@ int main(int argc, char *argv[])
                             filename_len = arr[current_file].size();
                             omp_unset_lock(&lck);
 
-                            #pragma omp critical
-                            {
-                                cout << "Process " << pid << " Thread " << tid << " got file name " << read_file_name << endl;
-                            }
+                            // #pragma omp critical
+                            // {
+                            //     cout << "Process " << pid << " Thread " << tid << " got file name " << read_file_name << endl;
+                            // }
 
                         }
-
-                        mappers[i]->disableMapper(); // Disable corresponding mapper once complete
+                        #pragma omp critical 
+                        {
+                            mappers[i]->disableMapper(); // Disable corresponding mapper once complete
+                        }
+                    
                     }
 
                     // Run corresponding mapper task
@@ -204,13 +212,20 @@ int main(int argc, char *argv[])
                     {
                         int tid = omp_get_thread_num();
                         //std::cout << "Mapper Task: " << tid << std::endl;
-
+                        #pragma omp critical
+                        {
+                            cout << "Process " << pid << " Thread " << tid << " BEGINNING MAPPING " << endl;
+                        }
                         // Read from the Queue while the mapper is enabled or queue is not empty
                         while( mappers[i]->mEnable || !readers[i]->mQueue->empty() )
                         {
                             mappers[i]->readQueue( *readers[i]->mQueue );
                         }
-                        // Once reading is complete, send to reducer
+                        // Once reading is complete, send data to each process
+                        #pragma omp critical
+                        {
+                            cout << "Process " << pid << " Thread " << tid << " SENDING REDUCER DATA " << endl;
+                        }
                         mappers[i]->sendReducer( reducers, NUM_REDUCER_THREADS );
                     }
                 }
@@ -237,25 +252,26 @@ int main(int argc, char *argv[])
                     int filename_len = -1;
 
 
-                    #pragma omp critical
-                    {
-                        cout << "Process " << pid << " Thread " << tid << " started reader task " << endl;
-                    }
-
- 
-                    // Request to master process for first filename to read from
-                    MPI_Send( &pid, 1, MPI_INT, 0, 1, MPI_COMM_WORLD );
-
-                    // Probe to dynamically get the length of the filename string
-                    MPI_Probe( 0, 1, MPI_COMM_WORLD, &status );
-                    MPI_Get_count( &status, MPI_CHAR, &filename_len );
-
-                    MPI_Recv( read_file_name, filename_len, MPI_CHAR, 0, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE );
+                    // #pragma omp critical
+                    // {
+                    //     cout << "Process " << pid << " Thread " << tid << " started reader task " << endl;
+                    // }
 
                     #pragma omp critical
                     {
-                        cout << "Process " << pid << " Thread " << tid << " Received file name " << read_file_name << endl;
+                        // Request to master process for first filename to read from
+                        MPI_Send( &pid, 1, MPI_INT, 0, 1, MPI_COMM_WORLD );
+                        // Probe to dynamically get the length of the filename string
+                        MPI_Probe( 0, 1, MPI_COMM_WORLD, &status );
+                        MPI_Get_count( &status, MPI_CHAR, &filename_len );
+                        MPI_Recv( read_file_name, filename_len, MPI_CHAR, 0, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE );
                     }
+
+
+                    // #pragma omp critical
+                    // {
+                    //     cout << "Process " << pid << " Thread " << tid << " Received file name " << read_file_name << endl;
+                    // }
 
                     // Continue getting and reading files until all files read
     	            while ( strncmp( read_file_name, "all done", filename_len - 1 ) != 0 )
@@ -268,19 +284,21 @@ int main(int argc, char *argv[])
                         // clear out file name buffer
                         memset( read_file_name, 0, 16);
 
-                        // Request next file name to read from
-                        MPI_Send( &pid, 1, MPI_INT, 0, 1, MPI_COMM_WORLD );
-
-                        // Probe to dynamically get the lenght of the filename string
-                        MPI_Probe( 0, 1, MPI_COMM_WORLD, &status );
-                        MPI_Get_count( &status, MPI_CHAR, &filename_len );
-
-                        MPI_Recv( read_file_name, filename_len, MPI_CHAR, 0, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE );
-
                         #pragma omp critical
                         {
-                            cout << "Process " << pid << " Thread " << tid << " received file name " << read_file_name << endl;
+                            // Request next file name to read from
+                            MPI_Send( &pid, 1, MPI_INT, 0, 1, MPI_COMM_WORLD );
+                            // Probe to dynamically get the lenght of the filename string
+                            MPI_Probe( 0, 1, MPI_COMM_WORLD, &status );
+                            MPI_Get_count( &status, MPI_CHAR, &filename_len );
+                            MPI_Recv( read_file_name, filename_len, MPI_CHAR, 0, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE );
                         }
+
+
+                        // #pragma omp critical
+                        // {
+                        //     cout << "Process " << pid << " Thread " << tid << " received file name " << read_file_name << endl;
+                        // }
     	            }
 
                     mappers[i]->disableMapper(); // Disable corresponding mapper once complete
@@ -291,20 +309,43 @@ int main(int argc, char *argv[])
                 {
                     int tid = omp_get_thread_num();
                     //std::cout << "Mapper Task: " << tid << std::endl;
-
+                    #pragma omp critical
+                    {
+                        cout << "Process " << pid << " Thread " << tid << " BEGINNING MAPPING " << endl;
+                    }
                     // Read from the Queue while the mapper is enabled or queue is not empty
                     while( mappers[i]->mEnable || !readers[i]->mQueue->empty() )
                     {
                         mappers[i]->readQueue( *readers[i]->mQueue );
                     }
-                    // Once reading is complete, send to reducer
+                    // Once reading is complete, send data to each process
+                    #pragma omp critical
+                    {
+                        cout << "Process " << pid << " Thread " << tid << " SENDING REDUCER DATA " << endl;
+                    }
                     mappers[i]->sendReducer( reducers, NUM_REDUCER_THREADS );
                 }
             }
         }
     }
     }
-    
+
+    #pragma omp barrier
+    MPI_Barrier( MPI_COMM_WORLD );
+
+     // Let each reducer work on it's Queue
+    #pragma omp parallel for
+    for( int i = 0; i < NUM_READER_THREADS; i++ )
+    {
+        #pragma omp critical
+        {
+             cout << "Process " << pid << " Thread " << omp_get_thread_num() << " RECEIVING REDUCER DATA " << endl;
+        }  
+        mappers[i]->recvReducer( reducers );
+    }
+
+    #pragma omp barrier
+    MPI_Barrier( MPI_COMM_WORLD );
 
     // Let each reducer work on it's Queue
     #pragma omp parallel for
