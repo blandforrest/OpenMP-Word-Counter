@@ -14,13 +14,13 @@ using namespace std;
 #define NUM_READER_THREADS 16
 #define NUM_REDUCER_THREADS 16
 #define NUM_INPUT_FILES 16
-
+#define MAX_NUM_INPUT_FILES 32
 
 
 int main()
 {
 
-    string arr[NUM_INPUT_FILES] = 
+    string arr[MAX_NUM_INPUT_FILES] = 
     {
         "files/1.txt",
         "files/2.txt",
@@ -37,8 +37,27 @@ int main()
         "files/13.txt",
         "files/14.txt",
         "files/15.txt",
-        "files/16.txt"
+        "files/16.txt",
+        "files/17.txt",
+        "files/18.txt",
+        "files/19.txt",
+        "files/20.txt",
+        "files/21.txt",
+        "files/22.txt",
+        "files/23.txt",
+        "files/24.txt",
+        "files/25.txt",
+        "files/26.txt",
+        "files/27.txt",
+        "files/28.txt",
+        "files/29.txt",
+        "files/30.txt",
+        "files/31.txt",
+        "files/32.txt"
     };
+
+    double start_time = omp_get_wtime();
+    double reader_end;
 
     Reader  * readers[NUM_READER_THREADS];
     Mapper  * mappers[NUM_READER_THREADS];
@@ -64,7 +83,7 @@ int main()
             for ( int i = 0; i < NUM_READER_THREADS; i++ )
             {
                 // Run Reader Task
-                #pragma omp task shared( current_file )
+                #pragma omp task shared( current_file, reader_end )
                 {
     	            int file_index = 0;
     	            int tid = omp_get_thread_num();
@@ -90,6 +109,10 @@ int main()
     	            }
 
                     mappers[i]->disableMapper(); // Disable corresponding mapper once complete
+                   
+                    // Set the reader end time (the last reader to finish will set the value to be used in calculations) 
+                    #pragma omp critical
+                    reader_end = omp_get_wtime();
                 }
 
                 // Run corresponding mapper task
@@ -110,6 +133,8 @@ int main()
         }
     }
 
+    double reducer_start_mapper_end = omp_get_wtime();
+
     // Let each reducer work on it's Queue
     #pragma omp parallel for
     for( int i = 0; i < NUM_REDUCER_THREADS; i++ )
@@ -121,6 +146,8 @@ int main()
         reducers[i]->Reduce();   
     }
 
+    double end_time = omp_get_wtime();
+
     // Print the output
     #pragma omp parallel 
     for( int i = 0; i < NUM_REDUCER_THREADS; i++ ) 
@@ -128,6 +155,11 @@ int main()
         std::cout << "Reducer: " << i << std::endl;
         reducers[i]->PrintResultsToFile( i );
     }
+
+    printf( "Total time to execute: %f seconds.\n", end_time - start_time );
+    printf( "Time Reader Threads Executing: %f seconds.\n", reader_end - start_time );
+    printf( "Time Mapper Threads Executing: %f seconds.\n", reducer_start_mapper_end - start_time );
+    printf( "Time Reducer Threads Executing: %f seconds.\n\n", end_time - reducer_start_mapper_end );
 
 	return 0;
 }
