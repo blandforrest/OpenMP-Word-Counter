@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 2.8)
 
-list( APPEND CMAKE_CXX_FLAGS "-fopenmp -std=c++11 ${CMAKE_CXX_FLAGS}")
+list( APPEND CMAKE_CXX_FLAGS "-fopenmp -std=c++14 ${CMAKE_CXX_FLAGS}")
 
 project(LeProject)
 
